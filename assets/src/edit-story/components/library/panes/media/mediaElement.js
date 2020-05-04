@@ -28,6 +28,7 @@ import { useState, useRef, useMemo } from 'react';
  */
 import { useDropTargets } from '../../../../app';
 import { ReactComponent as Play } from '../../../../icons/play.svg';
+import DropDownMenu from './dropDownMenu';
 
 const styledTiles = css`
   width: 100%;
@@ -51,11 +52,12 @@ const Container = styled.div`
 
 const PlayIcon = styled(Play)`
   height: 24px;
-  position: absolute;
   width: 24px;
+  position: absolute;
   top: calc(50% - 12px);
   left: calc(50% - 12px);
 `;
+
 const Duration = styled.div`
   position: absolute;
   bottom: 12px;
@@ -133,6 +135,7 @@ const MediaElement = ({
 
   const mediaElement = useRef();
   const [showVideoDetail, setShowVideoDetail] = useState(true);
+  const [showMoreIcon, setShowMoreIcon] = useState(false);
 
   const {
     actions: { handleDrag, handleDrop, setDraggingResource },
@@ -172,7 +175,21 @@ const MediaElement = ({
 
   const onClick = () => onInsert(resource, width, height);
 
+  /// Callback for when the More dropdown menu has been opened / closed.
+  const menuCallback = (isMenuOpen) => {
+    if (isMenuOpen && type === 'video' && mediaElement.current) {
+      // If it's a video, pause the preview while the dropdown menu is open.
+      mediaElement.current.pause();
+      mediaElement.current.currentTime = 0;
+    } else if (!isMenuOpen) {
+      setShowMoreIcon(false);
+    }
+  };
+
   if (type === 'image') {
+    const onPointerEnterImage = () => setShowMoreIcon(true);
+    const onPointerLeaveImage = () => setShowMoreIcon(false);
+
     let imageSrc = src;
     if (sizes) {
       const { web_stories_thumbnail: webStoriesThumbnail, large, full } = sizes;
@@ -185,7 +202,10 @@ const MediaElement = ({
       }
     }
     return (
-      <Container>
+      <Container
+        onPointerEnter={onPointerEnterImage}
+        onPointerLeave={onPointerLeaveImage}
+      >
         <Image
           key={src}
           src={imageSrc}
@@ -207,31 +227,36 @@ const MediaElement = ({
             <UploadingIndicator />
           </CSSTransition>
         )}
+        <DropDownMenu
+          showDisplayIcon={showMoreIcon}
+          menuCallback={menuCallback}
+        />
       </Container>
     );
   }
 
-  const pointerEnter = () => {
+  const onPointerEnterVideo = () => {
     setShowVideoDetail(false);
     if (mediaElement.current) {
       mediaElement.current.play();
     }
+    setShowMoreIcon(true);
   };
 
-  const pointerLeave = () => {
+  const onPointerLeaveVideo = () => {
     setShowVideoDetail(true);
     if (mediaElement.current) {
       mediaElement.current.pause();
       mediaElement.current.currentTime = 0;
     }
+    setShowMoreIcon(false);
   };
 
   const { lengthFormatted, poster, mimeType } = resource;
   return (
     <Container
-      onPointerEnter={pointerEnter}
-      onPointerLeave={pointerLeave}
-      onClick={onClick}
+      onPointerEnter={onPointerEnterVideo}
+      onPointerLeave={onPointerLeaveVideo}
     >
       <Video
         key={src}
@@ -241,6 +266,7 @@ const MediaElement = ({
         height={height}
         preload="none"
         muted
+        onClick={onClick}
         {...dropTargetsBindings}
       >
         <source src={src} type={mimeType} />
@@ -257,6 +283,10 @@ const MediaElement = ({
           <UploadingIndicator />
         </CSSTransition>
       )}
+      <DropDownMenu
+        showDisplayIcon={showMoreIcon}
+        menuCallback={menuCallback}
+      />
     </Container>
   );
 };
